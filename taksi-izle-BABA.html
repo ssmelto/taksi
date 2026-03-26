@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>🚕 Taksi İzleme</title>
+<style>
+:root{
+  --bg:#0f1117;--surface:#1a1d2e;--surface2:#222540;--border:#2a2f50;
+  --gold:#f5c842;--gold-dim:#d4900a;
+  --green:#5edb9a;--red:#ff6b6b;--blue:#74b9ff;--teal:#55efc4;--orange:#ffa07a;
+  --text:#e8eaf6;--text-dim:#a0aac0;--text-muted:#606880;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;min-height:100vh;}
+
+.header{background:var(--surface);border-bottom:2px solid var(--gold-dim);padding:14px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:100;}
+.logo{font-size:1.2rem;font-weight:900;color:var(--gold);letter-spacing:1px;}
+.logo span{color:var(--text-muted);font-size:.65rem;display:block;letter-spacing:2px;font-weight:400;}
+.sync-badge{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:.7rem;font-weight:700;padding:5px 10px;border-radius:20px;background:#0a1f0a;border:1px solid #1a5a1a;color:var(--green);}
+.sync-badge.syncing{background:#0a1020;border-color:#1a2a50;color:var(--blue);}
+.sync-badge.offline{background:#1f0a0a;border-color:#5a1a1a;color:var(--red);}
+.sync-dot{width:7px;height:7px;border-radius:50%;background:currentColor;}
+.sync-dot.pulse{animation:pulse 1.5s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.3;}}
+
+.main{padding:14px 14px;max-width:600px;margin:0 auto;}
+
+/* ARAÇ SEÇİCİ */
+.arac-seç{display:flex;gap:8px;margin-bottom:14px;}
+.arac-btn{flex:1;padding:10px;border:2px solid var(--border);border-radius:10px;background:var(--surface);color:var(--text-dim);font-size:.8rem;font-weight:700;cursor:pointer;text-align:center;transition:all .2s;letter-spacing:.5px;}
+.arac-btn.active{border-color:var(--gold);color:var(--gold);background:rgba(245,200,66,.08);}
+
+/* YIL NAV */
+.yil-nav{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:14px;}
+.yil-btn{background:var(--surface2);border:1px solid var(--border);color:var(--gold);width:34px;height:34px;border-radius:8px;cursor:pointer;font-size:1rem;font-weight:700;transition:all .2s;}
+.yil-btn:hover{background:var(--gold);color:var(--bg);}
+.yil-lbl{font-size:1.1rem;font-weight:900;color:var(--gold);letter-spacing:2px;}
+
+/* ÖZET KARTLAR */
+.summary{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
+.scard{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;text-align:center;}
+.scard.ciro{border-top:3px solid var(--gold);}
+.scard.gider{border-top:3px solid var(--red);}
+.scard.net-pos{border-top:3px solid var(--green);}
+.scard.net-neg{border-top:3px solid var(--red);}
+.scard.km{border-top:3px solid var(--teal);}
+.scard-lbl{font-size:.58rem;color:var(--text-muted);letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-weight:600;}
+.scard-val{font-size:1.3rem;font-weight:900;letter-spacing:.5px;}
+.scard.ciro .scard-val{color:var(--gold);}
+.scard.gider .scard-val{color:var(--red);}
+.scard.net-pos .scard-val{color:var(--green);}
+.scard.net-neg .scard-val{color:var(--red);}
+.scard.km .scard-val{color:var(--teal);}
+
+/* AY TABLETLERİ */
+.aylar{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px;}
+.ay-kart{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;cursor:pointer;transition:all .2s;}
+.ay-kart:hover{border-color:var(--blue);}
+.ay-kart.active{border-color:var(--gold);background:rgba(245,200,66,.06);}
+.ay-kart.pos{border-left:3px solid var(--green);}
+.ay-kart.neg{border-left:3px solid var(--red);}
+.ay-kart.empty{border-left:3px solid var(--border);}
+.ay-lbl{font-size:.65rem;color:var(--text-muted);font-weight:700;letter-spacing:1px;margin-bottom:4px;}
+.ay-val{font-size:.82rem;font-weight:800;}
+.ay-val.pos{color:var(--green);}
+.ay-val.neg{color:var(--red);}
+.ay-val.empty{color:var(--text-muted);}
+
+/* DETAY PANEL */
+.detay{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;display:none;}
+.detay.show{display:block;}
+.detay-baslik{font-size:.7rem;font-weight:800;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;}
+.detay-kapat{color:var(--text-muted);cursor:pointer;font-size:1rem;}
+.detay-row{display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);}
+.detay-row:last-child{border-bottom:none;}
+.detay-lbl{font-size:.75rem;color:var(--text-dim);}
+.detay-val{font-size:.82rem;font-weight:700;}
+.detay-val.gold{color:var(--gold);}
+.detay-val.red{color:var(--red);}
+.detay-val.green{color:var(--green);}
+.detay-val.blue{color:var(--blue);}
+.detay-val.teal{color:var(--teal);}
+.detay-val.orange{color:var(--orange);}
+
+/* GÜNLÜK TABLO */
+.gunler-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;}
+.gunler-baslik{padding:12px 14px;font-size:.65rem;font-weight:800;color:var(--blue);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border);}
+.gun-satir{display:grid;grid-template-columns:32px 1fr 1fr 1fr;gap:4px;padding:7px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;}
+.gun-satir:last-child{border-bottom:none;}
+.gun-satir:hover{background:rgba(255,255,255,.03);}
+.gun-satir.baslik{background:rgba(255,255,255,.06);font-size:.62rem;font-weight:700;color:var(--text-muted);letter-spacing:.5px;}
+.gun-no{color:var(--text-muted);font-weight:700;text-align:center;}
+.gun-ciro{color:var(--gold);font-weight:700;text-align:right;}
+.gun-gider{color:var(--red);text-align:right;}
+.gun-net{font-weight:800;text-align:right;}
+.gun-net.pos{color:var(--green);}
+.gun-net.neg{color:var(--red);}
+.gun-net.zero{color:var(--text-muted);}
+.gun-satir-empty{color:var(--text-muted);}
+
+/* YILLIK ÖZET */
+.yillik{background:linear-gradient(135deg,#1a2540,#0f1520);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;}
+.yillik-baslik{font-size:.65rem;font-weight:800;color:var(--blue);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px;}
+.yillik-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.yillik-item{text-align:center;}
+.yillik-lbl{font-size:.58rem;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+.yillik-val{font-size:1.1rem;font-weight:900;}
+
+/* GÜNCELLEME */
+.guncelleme{text-align:center;font-size:.65rem;color:var(--text-muted);padding:8px;margin-bottom:14px;}
+
+/* LOADING */
+.loading{text-align:center;padding:40px;color:var(--text-muted);}
+.loading::after{content:'';display:inline-block;width:24px;height:24px;border:2px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .8s linear infinite;margin-left:8px;vertical-align:middle;}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+.no-data{text-align:center;padding:30px;color:var(--text-muted);font-size:.85rem;}
+
+/* BAKIM PANELİ */
+.bakim-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px;display:none;}
+.bakim-panel.show{display:block;}
+.bakim-panel-baslik{padding:12px 14px;font-size:.65rem;font-weight:800;color:var(--teal);letter-spacing:2px;text-transform:uppercase;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;}
+.bakim-kapat{color:var(--text-muted);cursor:pointer;font-size:1rem;}
+.bakim-ozet-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px 14px;border-bottom:1px solid var(--border);}
+.bakim-ozet-item{text-align:center;}
+.bakim-ozet-lbl{font-size:.55rem;color:var(--text-muted);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:4px;}
+.bakim-ozet-val{font-size:.95rem;font-weight:900;}
+.bakim-satir{display:grid;grid-template-columns:80px 1fr 80px;gap:6px;padding:9px 14px;border-bottom:1px solid rgba(255,255,255,.04);font-size:.75rem;align-items:center;}
+.bakim-satir:last-child{border-bottom:none;}
+.bakim-satir:hover{background:rgba(255,255,255,.03);}
+.bakim-satir.baslik-row{background:rgba(255,255,255,.05);font-size:.6rem;font-weight:700;color:var(--text-muted);letter-spacing:.5px;}
+.bakim-tarih{color:var(--teal);font-weight:700;}
+.bakim-islem{color:var(--text);font-size:.73rem;}
+.bakim-tutar{color:var(--red);font-weight:800;text-align:right;}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">🚕 MELİH ÜNVER<span>CANLI İZLEME</span></div>
+  <div class="sync-badge syncing" id="syncBadge">
+    <div class="sync-dot pulse"></div>
+    <span id="syncText">Bağlanıyor...</span>
+  </div>
+</div>
+
+<div class="main">
+  <div id="loadingDiv" class="loading">Veriler yükleniyor</div>
+  <div id="icerik" style="display:none">
+
+    <div class="arac-seç" id="aracNav"></div>
+
+    <div class="yil-nav">
+      <button class="yil-btn" onclick="degYil(-1)">◀</button>
+      <span class="yil-lbl" id="yilLbl">2026</span>
+      <button class="yil-btn" onclick="degYil(1)">▶</button>
+    </div>
+
+    <div class="summary" id="ozet"></div>
+
+    <div class="aylar" id="aylar"></div>
+
+    <div class="detay" id="detayPanel">
+      <div class="detay-baslik">
+        <span id="detayBaslik">AY DETAYI</span>
+        <span class="detay-kapat" onclick="detayKapat()">✕</span>
+      </div>
+      <div id="detayIcerik"></div>
+    </div>
+
+    <div class="bakim-panel" id="bakimPanel">
+      <div class="bakim-panel-baslik">
+        <span>🔧 BAKIM GEÇMİŞİ</span>
+        <span class="bakim-kapat" onclick="bakimKapat()">✕</span>
+      </div>
+      <div class="bakim-ozet-grid" id="bakimOzet"></div>
+      <div id="bakimIcerik"></div>
+    </div>
+
+    <div class="gunler-wrap" id="gunlerWrap" style="display:none">
+      <div class="gunler-baslik" id="gunlerBaslik">GÜNLÜK VERİ</div>
+      <div id="gunlerIcerik"></div>
+    </div>
+
+    <div class="yillik" id="yillikPanel"></div>
+
+    <div class="guncelleme" id="guncLbl"></div>
+  </div>
+</div>
+
+<script>
+const AYLAR=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+const AY_GUN=[31,28,31,30,31,30,31,31,30,31,30,31];
+const ARACLAR=['07T3315','07T3361','07T2452'];
+const FB_URL='https://melih-taksi-default-rtdb.firebaseio.com';
+
+let yr=2026,arac=0,aktifAy=null,allData={};
+
+function days(m){let d=AY_GUN[m];if(m===1&&((yr%4===0&&yr%100!==0)||yr%400===0))d=29;return d;}
+function skey(){return'taksi_v4_'+ARACLAR[arac]+'_'+yr;}
+function fmt(v){if(!v&&v!==0)return'-';if(v===0)return'0';return Math.round(v).toLocaleString('tr-TR');}
+
+function calc(r){
+  const c=+r.ciro||0,h=+r.hanut||0,y=+r.yakit||0,s=+r.sofor||0,sn=+r.sanayi||0,d=+r.diger||0,a=+r.aidat||0;
+  const gel=c+h,tg=y+s+sn+d+a,kal=gel-tg;
+  return{ciro:c,hanut:h,yakit:y,sofor:s,sanayi:sn,diger:d,aidat:a,gelir:gel,tg,kalan:kal};
+}
+
+function mTotals(data,m){
+  let t={ciro:0,hanut:0,yakit:0,sofor:0,sanayi:0,diger:0,aidat:0,gelir:0,tg:0,kalan:0};
+  const md=data.months&&data.months[m]?data.months[m]:{};
+  for(let d=1;d<=days(m);d++){
+    if(!md[d])continue;
+    const c=calc(md[d]);
+    for(const k in t)t[k]+=c[k];
+  }
+  return t;
+}
+
+function kmData(data,m){
+  const km=data.km&&data.km[m]?data.km[m]:{};
+  const kb=+km.bas||0,ks=+km.son||0;
+  return{bas:kb,son:ks,fark:ks>kb?ks-kb:0};
+}
+
+// Firebase'den veri yükle
+async function yukle(){
+  setSyncState('syncing','Yükleniyor...');
+  const key=skey();
+  try{
+    const r=await fetch(`${FB_URL}/taksi/${key}.json`);
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    if(d&&d.months){
+      allData[key]=d;
+      renderAll();
+      setSyncState('online','Canlı');
+      document.getElementById('guncLbl').textContent='Son güncelleme: '+new Date().toLocaleString('tr-TR');
+    } else {
+      renderAll();
+      setSyncState('online','Veri yok');
+    }
+  }catch(e){
+    setSyncState('offline','Bağlantı yok');
+    document.getElementById('guncLbl').textContent='⚠️ İnternet bağlantısı yok';
+  }
+  document.getElementById('loadingDiv').style.display='none';
+  document.getElementById('icerik').style.display='block';
+}
+
+function setSyncState(state,text){
+  const badge=document.getElementById('syncBadge');
+  const dot=badge.querySelector('.sync-dot');
+  badge.className='sync-badge '+state;
+  dot.className='sync-dot'+(state==='syncing'?' pulse':'');
+  document.getElementById('syncText').textContent=text;
+}
+
+function getData(){return allData[skey()]||{months:{},km:{}};}
+
+function renderAll(){
+  renderAracNav();
+  renderOzet();
+  renderAylar();
+  renderYillik();
+  if(aktifAy!==null)renderDetay(aktifAy);
+}
+
+function renderAracNav(){
+  const nav=document.getElementById('aracNav');
+  nav.innerHTML=ARACLAR.map((a,i)=>
+    `<div class="arac-btn${arac===i?' active':''}" onclick="secArac(${i})">🚕 ${a}</div>`
+  ).join('');
+}
+
+function secArac(i){arac=i;aktifAy=null;document.getElementById('detayPanel').classList.remove('show');document.getElementById('gunlerWrap').style.display='none';yukle();}
+function degYil(d){yr=Math.max(2024,Math.min(2030,yr+d));document.getElementById('yilLbl').textContent=yr;aktifAy=null;document.getElementById('detayPanel').classList.remove('show');document.getElementById('gunlerWrap').style.display='none';yukle();}
+
+function renderOzet(){
+  const data=getData();
+  let yt={gelir:0,tg:0,kalan:0,km:0};
+  for(let m=0;m<12;m++){
+    const t=mTotals(data,m);
+    yt.gelir+=t.gelir;yt.tg+=t.tg;yt.kalan+=t.kalan;
+    yt.km+=kmData(data,m).fark;
+  }
+  const nc=yt.kalan>=0?'net-pos':'net-neg';
+  document.getElementById('ozet').innerHTML=`
+    <div class="scard ciro"><div class="scard-lbl">YILLIk CİRO</div><div class="scard-val">${fmt(yt.gelir)} ₺</div></div>
+    <div class="scard gider"><div class="scard-lbl">YILLIK GİDER</div><div class="scard-val">${fmt(yt.tg)} ₺</div></div>
+    <div class="scard ${nc}"><div class="scard-lbl">YILLIK NET</div><div class="scard-val">${fmt(yt.kalan)} ₺</div></div>
+    <div class="scard km"><div class="scard-lbl">YILLIK KM</div><div class="scard-val">${fmt(yt.km)} km</div></div>
+  `;
+}
+
+function renderAylar(){
+  const data=getData();
+
+  // Bakım toplamını hesapla (sanayi alanından)
+  let bakimToplam=0, bakimAdet=0;
+  for(let m=0;m<12;m++){
+    const md=data.months&&data.months[m]?data.months[m]:{};
+    for(let d=1;d<=days(m);d++){
+      if(md[d]&&+md[d].sanayi>0){bakimToplam+=+md[d].sanayi;bakimAdet++;}
+    }
+  }
+
+  const ayHTML=AYLAR.map((ay,m)=>{
+    const t=mTotals(data,m);
+    const isEmpty=t.gelir===0&&t.tg===0;
+    const cls=isEmpty?'empty':t.kalan>=0?'pos':'neg';
+    const valStr=isEmpty?'—':(t.kalan>=0?'+':'')+fmt(t.kalan)+' ₺';
+    return `<div class="ay-kart ${cls}${aktifAy===m?' active':''}" onclick="secAy(${m})">
+      <div class="ay-lbl">${ay.toUpperCase()}</div>
+      <div class="ay-val ${cls}">${valStr}</div>
+    </div>`;
+  }).join('');
+
+  // BAKIM kartı — tam genişlik
+  const bakimActive = aktifAy==='bakim';
+  const bakimHTML=`<div class="ay-kart${bakimActive?' active':''}" style="grid-column:span 3;border-left:3px solid var(--teal);cursor:pointer;" onclick="secBakim()">
+    <div class="ay-lbl" style="color:var(--teal)">🔧 BAKIM GEÇMİŞİ</div>
+    <div class="ay-val" style="color:${bakimToplam>0?'var(--red)':'var(--text-muted)'}">
+      ${bakimToplam>0?fmt(bakimToplam)+' ₺ — '+bakimAdet+' kayıt':'—'}
+    </div>
+  </div>`;
+
+  document.getElementById('aylar').innerHTML=ayHTML+bakimHTML;
+}
+
+function secAy(m){
+  aktifAy=m;
+  document.getElementById('bakimPanel').classList.remove('show');
+  renderAylar();
+  renderDetay(m);
+  renderGunler(m);
+  setTimeout(()=>document.getElementById('detayPanel').scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+function detayKapat(){
+  aktifAy=null;
+  document.getElementById('detayPanel').classList.remove('show');
+  document.getElementById('gunlerWrap').style.display='none';
+  renderAylar();
+}
+
+function secBakim(){
+  aktifAy='bakim';
+  document.getElementById('detayPanel').classList.remove('show');
+  document.getElementById('gunlerWrap').style.display='none';
+  renderAylar();
+  renderBakimPanel();
+  setTimeout(()=>document.getElementById('bakimPanel').scrollIntoView({behavior:'smooth',block:'start'}),100);
+}
+
+function bakimKapat(){
+  aktifAy=null;
+  document.getElementById('bakimPanel').classList.remove('show');
+  renderAylar();
+}
+
+function renderBakimPanel(){
+  const data=getData();
+  const AY_ISIM=['Ocak','Şubat','Mart','Nisan','Mayıs','Haziran','Temmuz','Ağustos','Eylül','Ekim','Kasım','Aralık'];
+  const kayitlar=[];
+  for(let m=0;m<12;m++){
+    const md=data.months&&data.months[m]?data.months[m]:{};
+    for(let d=1;d<=days(m);d++){
+      if(md[d]&&+md[d].sanayi>0){
+        kayitlar.push({tarih:d+' '+AY_ISIM[m],aciklama:md[d].sanayi_a||'—',tutar:+md[d].sanayi});
+      }
+    }
+  }
+  const panel=document.getElementById('bakimPanel');
+  panel.classList.add('show');
+  if(kayitlar.length===0){
+    document.getElementById('bakimOzet').innerHTML='';
+    document.getElementById('bakimIcerik').innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">Bakım kaydı bulunamadı.</div>';
+    return;
+  }
+  const toplam=kayitlar.reduce((s,k)=>s+k.tutar,0);
+  document.getElementById('bakimOzet').innerHTML=`
+    <div class="bakim-ozet-item">
+      <div class="bakim-ozet-lbl">Yıllık Bakım Toplamı</div>
+      <div class="bakim-ozet-val" style="color:var(--red)">${Math.round(toplam).toLocaleString('tr-TR')} ₺</div>
+    </div>
+    <div class="bakim-ozet-item">
+      <div class="bakim-ozet-lbl">Kayıt Sayısı</div>
+      <div class="bakim-ozet-val" style="color:var(--teal)">${kayitlar.length} adet</div>
+    </div>`;
+  const sorted=[...kayitlar].reverse();
+  document.getElementById('bakimIcerik').innerHTML=
+    `<div class="bakim-satir baslik-row"><div>TARİH</div><div>AÇIKLAMA</div><div style="text-align:right">TUTAR</div></div>`+
+    sorted.map(k=>`<div class="bakim-satir">
+      <div class="bakim-tarih">${k.tarih}</div>
+      <div class="bakim-islem">${k.aciklama}</div>
+      <div class="bakim-tutar">${Math.round(k.tutar).toLocaleString('tr-TR')} ₺</div>
+    </div>`).join('')+
+    `<div class="bakim-satir" style="background:rgba(255,255,255,.06);font-weight:800">
+      <div style="color:var(--teal);font-size:.7rem;letter-spacing:1px">TOPLAM</div>
+      <div></div>
+      <div class="bakim-tutar" style="font-size:.9rem">${Math.round(toplam).toLocaleString('tr-TR')} ₺</div>
+    </div>`;
+}
+
+function renderDetay(m){
+  const data=getData();
+  const t=mTotals(data,m);
+  const kd=kmData(data,m);
+  const panel=document.getElementById('detayPanel');
+  panel.classList.add('show');
+  document.getElementById('detayBaslik').textContent=AYLAR[m].toUpperCase()+' '+yr+' — DETAY';
+  
+  if(t.gelir===0&&t.tg===0){
+    document.getElementById('detayIcerik').innerHTML='<div class="no-data">Bu ay için veri girilmemiş.</div>';
+    return;
+  }
+  
+  const netColor=t.kalan>=0?'green':'red';
+  const netOran=t.gelir>0?((t.kalan/t.gelir)*100).toFixed(1):null;
+  
+  document.getElementById('detayIcerik').innerHTML=`
+    <div class="detay-row"><span class="detay-lbl">💰 Toplam Ciro</span><span class="detay-val gold">${fmt(t.ciro)} ₺</span></div>
+    ${t.hanut>0?`<div class="detay-row"><span class="detay-lbl">💙 Extra Gelir</span><span class="detay-val blue">${fmt(t.hanut)} ₺</span></div>`:''}
+    <div class="detay-row"><span class="detay-lbl">💸 Toplam Gelir</span><span class="detay-val gold">${fmt(t.gelir)} ₺</span></div>
+    <div class="detay-row"><span class="detay-lbl">⛽ Yakıt</span><span class="detay-val red">${fmt(t.yakit)} ₺</span></div>
+    <div class="detay-row"><span class="detay-lbl">👤 Şoför</span><span class="detay-val orange">${fmt(t.sofor)} ₺</span></div>
+    ${t.sanayi>0?`<div class="detay-row"><span class="detay-lbl">🔧 Sanayi/Bakım</span><span class="detay-val red">${fmt(t.sanayi)} ₺</span></div>`:''}
+    ${t.aidat>0?`<div class="detay-row"><span class="detay-lbl">🏢 Aidat</span><span class="detay-val teal">${fmt(t.aidat)} ₺</span></div>`:''}
+    ${t.diger>0?`<div class="detay-row"><span class="detay-lbl">📎 Diğer</span><span class="detay-val">${fmt(t.diger)} ₺</span></div>`:''}
+    <div class="detay-row"><span class="detay-lbl">🔴 Toplam Gider</span><span class="detay-val red">${fmt(t.tg)} ₺</span></div>
+    <div class="detay-row"><span class="detay-lbl">✅ Net Kalan</span><span class="detay-val ${netColor}" style="font-size:1rem">${fmt(t.kalan)} ₺</span></div>
+    ${netOran?`<div class="detay-row"><span class="detay-lbl">📊 Karlılık Oranı</span><span class="detay-val ${netColor}">%${netOran}</span></div>`:''}
+    ${kd.fark>0?`<div class="detay-row"><span class="detay-lbl">🚗 Aylık KM</span><span class="detay-val teal">${fmt(kd.fark)} km</span></div>`:''}
+  `;
+}
+
+function renderGunler(m){
+  const data=getData();
+  const md=data.months&&data.months[m]?data.months[m]:{};
+  const wrap=document.getElementById('gunlerWrap');
+  
+  // Veri olan günleri filtrele
+  const gunler=[];
+  for(let d=1;d<=days(m);d++){
+    if(!md[d])continue;
+    const c=calc(md[d]);
+    if(c.ciro>0||c.tg>0)gunler.push({d,c});
+  }
+  
+  if(gunler.length===0){wrap.style.display='none';return;}
+  wrap.style.display='block';
+  document.getElementById('gunlerBaslik').textContent=AYLAR[m].toUpperCase()+' — GÜNLÜK VERİ';
+  
+  document.getElementById('gunlerIcerik').innerHTML=
+    `<div class="gun-satir baslik">
+      <div class="gun-no">GÜN</div>
+      <div class="gun-ciro">CİRO</div>
+      <div class="gun-gider">GİDER</div>
+      <div class="gun-net">NET</div>
+    </div>`+
+    gunler.map(({d,c})=>{
+      const nc=c.kalan>0?'pos':c.kalan<0?'neg':'zero';
+      return `<div class="gun-satir">
+        <div class="gun-no">${d}</div>
+        <div class="gun-ciro">${c.ciro>0?fmt(c.ciro)+' ₺':'-'}</div>
+        <div class="gun-gider">${c.tg>0?fmt(c.tg)+' ₺':'-'}</div>
+        <div class="gun-net ${nc}">${(c.ciro>0||c.tg>0)?((c.kalan>=0?'+':'')+fmt(c.kalan)+' ₺'):'-'}</div>
+      </div>`;
+    }).join('');
+}
+
+function renderYillik(){
+  const data=getData();
+  let yt={gelir:0,tg:0,kalan:0};
+  let enIyi={ay:-1,val:-Infinity},enKotu={ay:-1,val:Infinity};
+  for(let m=0;m<12;m++){
+    const t=mTotals(data,m);
+    if(t.gelir>0||t.tg>0){
+      yt.gelir+=t.gelir;yt.tg+=t.tg;yt.kalan+=t.kalan;
+      if(t.kalan>enIyi.val){enIyi={ay:m,val:t.kalan};}
+      if(t.kalan<enKotu.val){enKotu={ay:m,val:t.kalan};}
+    }
+  }
+  const nc=yt.kalan>=0?'var(--green)':'var(--red)';
+  const yillikEl=document.getElementById('yillikPanel');
+  yillikEl.innerHTML=`
+    <div class="yillik-baslik">📊 ${yr} YILI GENEL ÖZET</div>
+    <div class="yillik-grid">
+      <div class="yillik-item"><div class="yillik-lbl">Toplam Gelir</div><div class="yillik-val" style="color:var(--gold)">${fmt(yt.gelir)} ₺</div></div>
+      <div class="yillik-item"><div class="yillik-lbl">Toplam Gider</div><div class="yillik-val" style="color:var(--red)">${fmt(yt.tg)} ₺</div></div>
+      <div class="yillik-item"><div class="yillik-lbl">Net Kar/Zarar</div><div class="yillik-val" style="color:${nc}">${fmt(yt.kalan)} ₺</div></div>
+      <div class="yillik-item"><div class="yillik-lbl">En İyi Ay</div><div class="yillik-val" style="color:var(--green);font-size:.9rem">${enIyi.ay>=0?AYLAR[enIyi.ay]+' ('+fmt(enIyi.val)+' ₺)':'—'}</div></div>
+    </div>
+  `;
+}
+
+// Otomatik yenileme (her 30 saniyede bir)
+setInterval(yukle, 30000);
+
+// İlk yükleme
+yukle();
+</script>
+</body>
+</html>
